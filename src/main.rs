@@ -40,9 +40,9 @@ struct Args {
 
 /*
 samply record ./target/release/nasdaq-itch-orderbook \
--f /home/suhasghorp/Downloads/01302020.NASDAQ_ITCH50 \
+-f ~/Downloads/01302020.NASDAQ_ITCH50 \
 -s INTC \
--o /home/suhasghorp/RustProjects/nasdaq-itch-orderbook/orderbooks/AAPL_orderbook.csv
+-o ~/RustProjects/nasdaq-itch-orderbook/orderbooks/AAPL_orderbook.csv
 
 conda activate base
 
