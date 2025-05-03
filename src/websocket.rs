@@ -156,7 +156,7 @@ impl WebSocketServer {
                         count += 1;
 
                         // Add a small delay to simulate realistic message flow
-                        thread::sleep(Duration::from_millis(50));
+                        thread::sleep(Duration::from_millis(10));
                     }
                     Err(e) => {
                         eprintln!("Error reading CSV line: {}", e);

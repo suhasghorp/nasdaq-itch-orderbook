@@ -3,6 +3,7 @@ use crate::orderbook::OrderBook;
 use std::io;
 use std::mem::size_of;
 use std::ptr;
+use std::time::Instant;
 
 const MSG_HEADER_SIZE: usize = size_of::<MessageHeader>();
 
@@ -49,7 +50,8 @@ unsafe fn read_timestamp_be(ptr: *const u8) -> u64 {
 pub fn process_itch_file(data: &[u8], order_book: &mut OrderBook) -> io::Result<()> {
     let mut offset = 0;
     let data_len = data.len();
-
+    let mut count:u128 = 0;
+    let start_time = Instant::now();
     // Pre-calculate the prefetch distance - helps with cache efficiency
     let prefetch_distance = 16 * 4; // 4 cache lines ahead
 
@@ -99,6 +101,11 @@ pub fn process_itch_file(data: &[u8], order_book: &mut OrderBook) -> io::Result<
         if message_type != MessageType::Unknown {
             order_book.handle_message(message_type, message_data, timestamp)?;
 
+        }
+        count += 1;
+        if count % 10_000_000 == 0 {
+            let diff = start_time.elapsed().as_millis();
+            tracing::info!("Processed {} Million messages, {} Million messages per second", count/1_000_000,count/diff/1000);
         }
 
         // Move to next message

@@ -39,9 +39,14 @@ struct Args {
 }
 
 /*
-samply record ./target/release/nasdaq-itch-orderbook -f /home/suhasghorp/Downloads/01302020.NASDAQ_ITCH50 -s INTC -o /home/suhasghorp/RustProjects/nasdaq-itch-orderbook/orderbooks/book.csv
+samply record ./target/release/nasdaq-itch-orderbook \
+-f /home/suhasghorp/Downloads/01302020.NASDAQ_ITCH50 \
+-s INTC \
+-o /home/suhasghorp/RustProjects/nasdaq-itch-orderbook/orderbooks/AAPL_orderbook.csv
+
 conda activate base
-python visualize.py ../orderbooks/book.csv --skip-premarket
+
+python visualize.py ../orderbooks/AAPL_orderbook.csv
  */
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -55,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let symbol = utils::pad_stock_symbol(&args.symbol);
 
     tracing::info!("Processing ITCH data for symbol: {}", args.symbol);
-    let start_time = Instant::now();
+
 
     // Memory map the input file
     let mapped_file = file_io::map_file(&args.file)?;
@@ -63,7 +68,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create orderbook
     let mut order_book = orderbook::OrderBook::new(symbol, &args.output_file)?;
+    tracing::info!("Created Limit Orderbook for symbol: {}", args.symbol);
 
+    let start_time = Instant::now();
     // Process the file
     parser::process_itch_file(&mapped_file, &mut order_book)?;
 
