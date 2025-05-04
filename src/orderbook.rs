@@ -51,7 +51,7 @@ pub struct OrderBook {
     message_count: u64,
     update_count: u64,
     // Pre-allocate buffers for string operations
-    line_buffer: String,
+    //line_buffer: String,
 }
 
 // Snapshot of orderbook state used for delta comparison
@@ -60,11 +60,11 @@ struct OrderbookState {
     timestamp: u64,
     bid_levels: Vec<PriceLevel>,
     ask_levels: Vec<PriceLevel>,
-    mid_price: f64,
+    mid_price: u32,
     imbalance: f64,
 }
 
-#[inline]
+#[inline(always)]
 unsafe fn read_u32_be(data: &[u8], offset: usize) -> u32 {
     let bytes = [data[offset], data[offset + 1], data[offset + 2], data[offset + 3]];
     u32::from_be_bytes(bytes)
@@ -81,14 +81,14 @@ fn read_order_ref_be(data: &[u8], offset: usize) -> u64 {
     result
 }
 
-#[inline]
+#[inline(always)]
 unsafe fn read_stock(data: &[u8], offset: usize) -> [u8; 8] {
     let mut stock = [0u8; 8];
     stock.copy_from_slice(&data[offset..offset + 8]);
     stock
 }
 
-#[inline]
+#[inline(always)]
 // Fix the calculate_imbalance method to use buy_price_map and sell_price_map
 fn calculate_imbalance(bids : &[PriceLevel], asks : &[PriceLevel]) -> f64 {
     let total_bid_volume: u32 = bids.iter().map(|price_level| price_level.total_volume).sum();
@@ -127,7 +127,7 @@ impl OrderBook {
             last_state: None,
             message_count: 0,
             update_count: 0,
-            line_buffer: String::new(),
+            //line_buffer: String::new(),
         })
     }
 
@@ -583,11 +583,10 @@ impl OrderBook {
         let bids = self.get_top_bids(MAX_BOOK_DEPTH);
         let asks = self.get_top_asks(MAX_BOOK_DEPTH);
 
-        //let mid_price = self.calculate_mid_price();
-        let mid_price = (bids.get(0).map_or(0, |p| p.price) as f64 +
-            asks.get(0).map_or(0, |p| p.price) as f64) / 20000.0;
-        //println!("old mid price: {}, new mid price: {}", mid_price, mid_price_new);
+        let mid_price = bids.get(0).map_or(0, |p| p.price)  +
+            asks.get(0).map_or(0, |p| p.price) ;
         let imbalance = calculate_imbalance(&bids, &asks);
+
 
         // Create a new state to check for changes
         let new_state = OrderbookState {
@@ -616,10 +615,10 @@ impl OrderBook {
         self.last_state = Some(new_state);
 
         // Clear the existing buffer
-        self.line_buffer.clear();
+        //self.line_buffer.clear();
 
         // Start with timestamp
-        self.line_buffer.push_str(&timestamp.to_string());
+        //self.line_buffer.push_str(&timestamp.to_string());
 
         // Add padded bids and asks
         let padded_bids = self.pad_levels(bids, MAX_BOOK_DEPTH);
@@ -636,16 +635,19 @@ impl OrderBook {
             // Get integer and decimal parts for prices
             let (bid_int, bid_dec) = self.price_to_decimal_fast(padded_bids[i].price);
             let (ask_int, ask_dec) = self.price_to_decimal_fast(padded_asks[i].price);
+            //let (mid_int, mid_dec) = self.price_to_decimal_fast(mid_price);
+
 
             // Write formatted prices with proper decimal padding
             write!(self.writer, ",{}.{:04},{},{}.{:04},{}",
                    bid_int, bid_dec,
                    padded_bids[i].total_volume,
                    ask_int, ask_dec,
-                   padded_asks[i].total_volume)?;
+                   padded_asks[i].total_volume
+                   )?;
         }
 
-        write!(self.writer, ",{:.4},{:.6}", mid_price, imbalance)?;
+        write!(self.writer, ",{:.04},{:.06}", mid_price, imbalance)?;
 
         // End the line
         self.writer.write_all(b"\n")?;
@@ -657,6 +659,7 @@ impl OrderBook {
 
         Ok(())
     }
+
 
     // Ensure we have exactly 'count' levels by padding with zeros if needed
     fn pad_levels(&self, mut levels: Vec<PriceLevel>, count: usize) -> Vec<PriceLevel> {
