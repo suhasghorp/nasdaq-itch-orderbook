@@ -81,6 +81,7 @@ fn read_order_ref_be(data: &[u8], offset: usize) -> u64 {
     result
 }
 
+
 #[inline(always)]
 unsafe fn read_stock(data: &[u8], offset: usize) -> [u8; 8] {
     let mut stock = [0u8; 8];
@@ -237,16 +238,16 @@ impl OrderBook {
         // - match_number (8 bytes) -> offset 22
 
         let order_ref_number = read_order_ref_be(data, 10);
-        let executed_shares = unsafe{read_u32_be(data, 18)};
+        let executed_shares = read_order_ref_be(data, 18);
 
         // Look up the order
         if let Some(order) = self.buy_orders.get_mut(&order_ref_number) {
             // Reduce the shares
-            order.shares = order.shares.saturating_sub(executed_shares);
+            order.shares = order.shares.saturating_sub(executed_shares as u32);
 
             // Update the price map
             if let Some(volume) = self.buy_price_map.get_mut(&order.price) {
-                *volume = volume.saturating_sub(executed_shares);
+                *volume = volume.saturating_sub(executed_shares as u32);
                 if *volume == 0 {
                     self.buy_price_map.remove(&order.price);
                 }
@@ -261,11 +262,11 @@ impl OrderBook {
             self.write_orderbook(timestamp)?;
         } else if let Some(order) = self.sell_orders.get_mut(&order_ref_number) {
             // Reduce the shares
-            order.shares = order.shares.saturating_sub(executed_shares);
+            order.shares = order.shares.saturating_sub(executed_shares as u32);
 
             // Update the price map
             if let Some(volume) = self.sell_price_map.get_mut(&order.price) {
-                *volume = volume.saturating_sub(executed_shares);
+                *volume = volume.saturating_sub(executed_shares as u32);
                 if *volume == 0 {
                     self.sell_price_map.remove(&order.price);
                 }
@@ -597,28 +598,11 @@ impl OrderBook {
             imbalance,      // Initialize with calculated imbalance
         };
 
-        // Check if the orderbook state has actually changed (other than timestamp)
-        if let Some(ref last_state) = self.last_state {
-            let same_bids = last_state.bid_levels == new_state.bid_levels;
-            let same_asks = last_state.ask_levels == new_state.ask_levels;
-
-            if same_bids && same_asks {
-                // No meaningful change, skip writing
-                //return Ok(());
-            }
-        }
-
         // Increment update counter
         self.update_count += 1;
 
         // Update the last known state
         self.last_state = Some(new_state);
-
-        // Clear the existing buffer
-        //self.line_buffer.clear();
-
-        // Start with timestamp
-        //self.line_buffer.push_str(&timestamp.to_string());
 
         // Add padded bids and asks
         let padded_bids = self.pad_levels(bids, MAX_BOOK_DEPTH);
